@@ -1,0 +1,62 @@
+---
+- name: Plex media server setup
+  hosts: plexmediaservers
+  tasks:
+    - name: Update and upgrade apt packages
+      become: true
+      apt:
+        upgrade: yes
+        update_cache: yes
+    - name: Install apt-transport-https
+      become: true
+      apt:
+        name: apt-transport-https
+        state: present
+        install_recommends: true
+    - name: add Plex to apt key list
+      become: true
+      apt_key:
+        url: https://downloads.plex.tv/plex-keys/PlexSign.key
+    - name: Add specified repository into sources list
+      apt_repository:
+        repo: deb https://downloads.plex.tv/repo/deb public main
+        filename: plexmediaserver.list
+    - name: Refresh apt package list
+      become: true
+      apt:
+        update_cache: yes
+    - name: Install plexmediaserver
+      become: true
+      apt:
+        name: plexmediaserver
+        state: present
+        install_recommends: true
+- name: Plex media server USB setup
+  hosts: plexmediaservers
+  tasks:
+    - name: Install ntfs-3g
+      become: true
+      apt:
+        name: ntfs-3g
+    - name: Install exfat-fuse
+      become: true
+      apt:
+        name: exfat-fuse
+    - name: Install exfat-utils
+      become: true
+      apt:
+        name: exfat-utils
+- name: Plex media server Samba NAS setup
+  hosts: plexmediaservers
+  tasks:
+    - name: Update and upgrade apt packages
+      become: true
+      apt:
+        upgrade: yes
+        update_cache: yes
+    - name: Install samba
+      become: true
+      apt:
+        name:
+          - samba
+          - samba-common-bin

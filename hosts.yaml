@@ -1,0 +1,15 @@
+# /etc/ansible/hosts
+
+all:
+  hosts:
+  children:
+    plexmediaservers:
+      hosts:
+        - rpi1
+    kube_cluster:
+      hosts:
+        - rpi2
+        - rpi3
+        - rpi4:
+          ansible_host: 123.1.1.1
+          ansible_port: 5555

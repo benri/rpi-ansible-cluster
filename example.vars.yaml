@@ -1,0 +1,18 @@
+---
+mac_address_mapping:
+  "b8:27:eb:69:0d:c3":
+    name: kube1.pi
+    ip: "10.0.100.61"
+  "b8:27:eb:21:1b:f3":
+    name: kube2.pi
+    ip: "10.0.100.62"
+  "b8:27:eb:e3:be:21":
+    name: kube3.pi
+    ip: "10.0.100.63"
+  "b8:27:eb:09:4f:46":
+    name: kube4.pi
+    ip: "10.0.100.64"
+
+dns_nameservers:
+  - "1.1.1.1"
+  - "8.8.8.8"

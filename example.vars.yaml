@@ -1,4 +1,10 @@
 ---
+ansible_ssh_pass: pass
+samba_user:
+  name: samba
+  pass: pass
+pub_key_loc: /path/to/pub.key
+
 mac_address_mapping:
   "b8:27:eb:69:0d:c3":
     name: kube1.pi
@@ -16,3 +22,8 @@ mac_address_mapping:
 dns_nameservers:
   - "1.1.1.1"
   - "8.8.8.8"
+
+host_samba_map:
+  rpi1:
+    share_name: turtle5share
+    mount_path: /media/pi/TURTLE-5

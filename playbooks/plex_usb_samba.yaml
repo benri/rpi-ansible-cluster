@@ -1,0 +1,48 @@
+---
+- name: Plex media server Samba NAS setup
+  vars_files:
+    - ../vault/vars.yaml
+  hosts: plexmediaservers
+  tasks:
+    - name: Update and upgrade apt packages
+      become: true
+      apt:
+        upgrade: yes
+        update_cache: yes
+    - name: Install samba
+      become: true
+      apt:
+        name:
+          - samba
+          - samba-common-bin
+    - name: Set the current hostname
+      command: hostname
+      register: pi_hostname
+    - name: Set variables based on hostname
+      set_fact:
+        pi_mount_path: "{{ host_samba_map[pi_hostname.stdout].mount_path }}"
+        pi_share_name: "{{ host_samba_map[pi_hostname.stdout].share_name }}"
+    - name: Insert/Update share folder in smb.conf
+      become: true
+      when: (pi_mount_path is defined) and (pi_mount_path|length > 0)
+      blockinfile:
+        path: /etc/samba/smb.conf
+        marker: "### {mark} ANSIBLE MANAGED BLOCK [{{ pi_share_name }}]"
+        block: |
+          [{{ pi_share_name }}]
+          path = {{ pi_mount_path }}
+          writeable=Yes
+          create mask=0777
+          directory mask=0777
+          public=no
+      register: task_result
+    - name: Setup Samba user
+      become: true
+      shell: smbpasswd -e {{ samba_user.name }}
+      register: task_result2
+    - name: Restart the samba service
+      become: true
+      systemd:
+        name: smbd
+        state: restarted
+      when: task_result is changed or task_result2 is changed

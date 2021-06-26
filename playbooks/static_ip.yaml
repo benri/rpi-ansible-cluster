@@ -9,6 +9,21 @@
         user: pi
         state: present
         key: "{{ lookup('file', pub_key_loc) }}"
+- name: Enable VNC
+  hosts: all
+  tasks:
+    - name: Enable VNC server in systemd system
+      become: true
+      file:
+        src: /usr/lib/systemd/system/vncserver-x11-serviced.service
+        dest: /etc/systemd/system/multi-user.target.wants/vncserver-x11-serviced.service
+        state: link
+    - name: Start VNC service daemon
+      become: true
+      systemd:
+        name: vncserver-x11-serviced
+        state: started
+        enabled: true
 - name: Setup static ip
   vars_files:
     - ../vault/vars.yaml
@@ -22,6 +37,17 @@
         pi_hostname: "{{ mac_address_mapping[pi_mac_address].name }}"
         pi_ip_address: "{{ mac_address_mapping[pi_mac_address].ip }}"
         pi_eth0_ip_address: "{{ mac_address_mapping[pi_mac_address].eth0_ip }}"
+    - name: Set hostname
+      become: true
+      hostname:
+        name: "{{ pi_hostname }}"
+      register: set_hostname_result
+    - name: Replace hostname in /etc/hosts
+      become: true
+      replace:
+        path: /etc/hosts
+        regexp: '(\s+)raspberrypi(\s+.*)?$'
+        replace: '\1{{ pi_hostname }}\2'
     - name: Register router ip
       shell: ip r | grep default | awk '/default/ {print $3}'
       register: router_ip
@@ -54,7 +80,7 @@
       register: task_result2
     - name: Reboot the machine
       become: true
-      when: task_result is changed or task_result2 is changed
+      when: set_hostname_result is changed or task_result is changed or task_result2 is changed
       # reboot:
       #   post_reboot_delay: 60
       #   reboot_timeout: 120

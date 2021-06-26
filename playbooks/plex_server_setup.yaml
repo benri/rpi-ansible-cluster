@@ -18,6 +18,7 @@
       apt_key:
         url: https://downloads.plex.tv/plex-keys/PlexSign.key
     - name: Add specified repository into sources list
+      become: true
       apt_repository:
         repo: deb https://downloads.plex.tv/repo/deb public main
         filename: plexmediaserver.list
@@ -46,17 +47,3 @@
       become: true
       apt:
         name: exfat-utils
-- name: Plex media server Samba NAS setup
-  hosts: plexmediaservers
-  tasks:
-    - name: Update and upgrade apt packages
-      become: true
-      apt:
-        upgrade: yes
-        update_cache: yes
-    - name: Install samba
-      become: true
-      apt:
-        name:
-          - samba
-          - samba-common-bin

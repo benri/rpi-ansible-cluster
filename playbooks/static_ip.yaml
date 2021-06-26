@@ -21,26 +21,49 @@
       set_fact:
         pi_hostname: "{{ mac_address_mapping[pi_mac_address].name }}"
         pi_ip_address: "{{ mac_address_mapping[pi_mac_address].ip }}"
+        pi_eth0_ip_address: "{{ mac_address_mapping[pi_mac_address].eth0_ip }}"
     - name: Register router ip
       shell: ip r | grep default | awk '/default/ {print $3}'
       register: router_ip
     - name: Register default network
       shell: ip r | grep default | awk '/default/ {print $5}'
       register: default_network
-    - name: Insert/Update static ip in dhcpcd.conf
+    - name: Insert/Update static ip in dhcpcd.conf [DEFAULT]
       become: true
       when: (pi_ip_address is defined) and (pi_ip_address|length > 0)
       blockinfile:
         path: /etc/dhcpcd.conf
-        marker: "### {mark} ANSIBLE MANAGED BLOCK"
+        marker: "### {mark} ANSIBLE MANAGED BLOCK [{{ default_network.stdout }}]"
         block: |
           interface {{ default_network.stdout }}
           static ip_address={{ pi_ip_address }}/24
           static routers={{ router_ip.stdout }}
           static domain_name_servers={{ router_ip.stdout }} {{ dns_nameservers | join(' ') }}
       register: task_result
+    - name: Insert/Update static ip in dhcpcd.conf [ETH0]
+      become: true
+      when: (pi_eth0_ip_address is defined) and (pi_eth0_ip_address|length > 0)
+      blockinfile:
+        path: /etc/dhcpcd.conf
+        marker: "### {mark} ANSIBLE MANAGED BLOCK [eth0]"
+        block: |
+          interface eth0
+          static ip_address={{ pi_eth0_ip_address }}/24
+          static routers={{ router_ip.stdout }}
+          static domain_name_servers={{ router_ip.stdout }} {{ dns_nameservers | join(' ') }}
+      register: task_result2
     - name: Reboot the machine
       become: true
-      when: task_result is changed
-      reboot:
-        post_reboot_delay: 60
+      when: task_result is changed or task_result2 is changed
+      # reboot:
+      #   post_reboot_delay: 60
+      #   reboot_timeout: 120
+      shell: "sleep 5 && reboot"
+      async: 1
+      poll: 0
+    - name: Wait for the machine to come back online
+      wait_for_connection:
+        connect_timeout: 60
+        sleep: 5
+        delay: 5
+        timeout: 120

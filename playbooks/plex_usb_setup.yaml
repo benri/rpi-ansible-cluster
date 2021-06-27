@@ -1,0 +1,80 @@
+---
+- name: Plex media server USB software setup
+  hosts: plexmediaservers
+  tasks:
+    - name: Install ntfs-3g
+      become: true
+      apt:
+        name: ntfs-3g
+    - name: Install exfat-fuse
+      become: true
+      apt:
+        name: exfat-fuse
+    - name: Install exfat-utils
+      become: true
+      apt:
+        name: exfat-utils
+- name: Plex media server mounted USB setup
+  vars_files:
+    - ../vault/vars.yaml
+  hosts: plexmediaservers
+  tasks:
+    - name: Get the current hostname
+      command: hostname
+      register: pi_hostname
+    - name: Set variables based on hostname
+      set_fact:
+        pi_init_mount_path: "{{ host_samba_map[pi_hostname.stdout].init_mount_path }}"
+        pi_dest_mount_path: "{{ host_samba_map[pi_hostname.stdout].dest_mount_path }}"
+    - name: Get mounted filesystem location
+      shell: df -h | grep "{{ pi_init_mount_path }}" | awk '{print $1}'
+      when: (pi_init_mount_path is defined) and (pi_init_mount_path|length > 0)
+      register: df_loc_output
+    - name: Get UUID of mounted drive
+      become: true
+      shell: blkid {{ df_loc_output.stdout }} | sed -n 's/.* UUID=\"\([^\"]*\)\".*/\1/p'
+      when: (df_loc_output.stdout is defined) and (df_loc_output.stdout|length > 0)
+      register: mount_uuid
+    - name: Get TYPE of mounted drive
+      become: true
+      shell: blkid {{ df_loc_output.stdout }} | sed -n 's/.* TYPE=\"\([^\"]*\)\".*/\1/p'
+      when: (df_loc_output.stdout is defined) and (df_loc_output.stdout|length > 0)
+      register: mount_type
+    - name: Create mount dest directory if it does not exist
+      become: true
+      file:
+        path: "{{ pi_dest_mount_path }}"
+        state: directory
+        recurse: true
+        mode: "0755"
+        owner: pi
+        group: pi
+    - name: Unmount the initial volume
+      become: true
+      ansible.posix.mount:
+        path: "{{ pi_init_mount_path }}"
+        state: unmounted
+      when: (mount_uuid.stdout is defined) and (mount_uuid.stdout|length > 0) and (mount_type.stdout is defined) and (mount_type.stdout|length > 0)
+    - name: Insert/Update drive in fstab
+      become: true
+      when: (mount_uuid.stdout is defined) and (mount_uuid.stdout|length > 0) and (mount_type.stdout is defined) and (mount_type.stdout|length > 0)
+      ansible.posix.mount:
+        fstype: "{{ mount_type.stdout }}"
+        opts: "defaults,auto,users,rw,nofail,noatime"
+        path: "{{ pi_dest_mount_path }}"
+        src: "UUID={{ mount_uuid.stdout }}"
+        state: mounted
+      register: mount_task_result
+    - name: Reboot the machine
+      become: true
+      when: mount_task_result is changed
+      shell: "sleep 5 && reboot"
+      async: 1
+      poll: 0
+    - name: Wait for the machine to come back online
+      wait_for_connection:
+        connect_timeout: 60
+        sleep: 30
+        delay: 30
+        timeout: 120
+      when: mount_task_result is changed

@@ -32,18 +32,3 @@
         name: plexmediaserver
         state: present
         install_recommends: true
-- name: Plex media server USB setup
-  hosts: plexmediaservers
-  tasks:
-    - name: Install ntfs-3g
-      become: true
-      apt:
-        name: ntfs-3g
-    - name: Install exfat-fuse
-      become: true
-      apt:
-        name: exfat-fuse
-    - name: Install exfat-utils
-      become: true
-      apt:
-        name: exfat-utils

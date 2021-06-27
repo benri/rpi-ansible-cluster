@@ -15,22 +15,23 @@
         name:
           - samba
           - samba-common-bin
-    - name: Set the current hostname
+    - name: Get the current hostname
       command: hostname
       register: pi_hostname
     - name: Set variables based on hostname
       set_fact:
-        pi_mount_path: "{{ host_samba_map[pi_hostname.stdout].mount_path }}"
+        pi_init_mount_path: "{{ host_samba_map[pi_hostname.stdout].init_mount_path }}"
+        pi_dest_mount_path: "{{ host_samba_map[pi_hostname.stdout].dest_mount_path }}"
         pi_share_name: "{{ host_samba_map[pi_hostname.stdout].share_name }}"
     - name: Insert/Update share folder in smb.conf
       become: true
-      when: (pi_mount_path is defined) and (pi_mount_path|length > 0)
+      when: (pi_dest_mount_path is defined) and (pi_dest_mount_path|length > 0)
       blockinfile:
         path: /etc/samba/smb.conf
         marker: "### {mark} ANSIBLE MANAGED BLOCK [{{ pi_share_name }}]"
         block: |
           [{{ pi_share_name }}]
-          path = {{ pi_mount_path }}
+          path = {{ pi_dest_mount_path }}
           writeable=Yes
           create mask=0777
           directory mask=0777

@@ -25,5 +25,6 @@ dns_nameservers:
 
 host_samba_map:
   rpi1:
-    share_name: turtle5share
-    mount_path: /media/pi/TURTLE-5
+    share_name: sharename
+    init_mount_path: /media/drive/path
+    dest_mount_path: /mnt/dest/path

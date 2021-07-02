@@ -1,0 +1,97 @@
+---
+- name: Kube cluster setup
+  hosts: kube_cluster
+  tasks:
+    - name: Enable cgroup
+      become: true
+      replace:
+        path: /boot/cmdline.txt
+        regexp: '^([\w](?!.*\b{{ item }}\b).*)$'
+        replace: '\1 {{ item }}'
+      with_items:
+        - "cgroup_memory=1"
+        - "cgroup_enable=memory"
+      register: cmdline_result
+    - name: apt install snapd
+      become: true
+      apt:
+        update_cache: yes
+        name: snapd
+      register: install_snap_result
+    - name: Reboot the machine
+      become: true
+      when: cmdline_result is changed or install_snap_result is changed
+      shell: "sleep 5 && reboot"
+      async: 1
+      poll: 0
+    - name: Wait for the machine to come back online
+      wait_for_connection:
+        connect_timeout: 60
+        sleep: 30
+        delay: 30
+        timeout: 120
+      when: cmdline_result is changed or install_snap_result is changed
+    - name: sudo snap download core
+      become: true
+      shell: snap download core
+    - name: Install "microk8s" --classic --channel=1.21/stable
+      become: true
+      shell: snap install microk8s --classic --channel=1.20/stable
+      # community.general.snap:
+      #   name: microk8s
+      #   classic: yes
+      #   channel: 1.21/stable
+    - name: Ensure packets can be forwarded to default interface
+      become: true
+      shell: iptables -P FORWARD ACCEPT
+    - name: Install iptables-persistent
+      become: true
+      apt:
+        name: iptables-persistent
+    - name: Add pi user to microk8s user group
+      # sudo usermod -a -G microk8s $USER
+      become: true
+      ansible.builtin.user:
+        name: pi
+        groups: microk8s
+        append: yes
+      register: usergroup_result
+    - name: Change ownership of .kube directory to pi user
+      ansible.builtin.file:
+        path: ~/.kube
+        state: directory
+        recurse: yes
+        owner: pi
+      register: chmod_result
+    - name: Reboot the machine
+      become: true
+      when: usergroup_result is changed or chmod_result is changed
+      shell: "sleep 5 && reboot"
+      async: 1
+      poll: 0
+    - name: Wait for the machine to come back online
+      wait_for_connection:
+        connect_timeout: 60
+        sleep: 30
+        delay: 30
+        timeout: 120
+      when: usergroup_result is changed or chmod_result is changed
+    - name: microk8s.enable dns storage
+      become: true
+      ansible.builtin.shell: /snap/bin/microk8s.enable dns storage
+      register: enable_result
+    - name: Reboot the machine
+      become: true
+      when: enable_result is changed
+      shell: "sleep 5 && reboot"
+      async: 1
+      poll: 0
+    - name: Wait for the machine to come back online
+      wait_for_connection:
+        connect_timeout: 60
+        sleep: 30
+        delay: 30
+        timeout: 120
+      when: enable_result is changed
+    - name: Wait for ready status
+      shell: "/snap/bin/microk8s status --wait-ready"

@@ -39,7 +39,7 @@
       register: task_result
     - name: Setup Samba user
       become: true
-      shell: smbpasswd -e {{ samba_user.name }}
+      shell: smbpasswd -a {{ samba_user.name }} -w {{samba_user.pass}}
       register: task_result2
     - name: Restart the samba service
       become: true

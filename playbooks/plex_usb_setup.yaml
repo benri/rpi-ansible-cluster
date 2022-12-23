@@ -61,6 +61,7 @@
       ansible.posix.mount:
         fstype: "{{ mount_type.stdout }}"
         opts: "defaults,auto,users,rw,nofail,noatime"
+        # uid=1000,gid=1000,umask=002
         path: "{{ pi_dest_mount_path }}"
         src: "UUID={{ mount_uuid.stdout }}"
         state: mounted
